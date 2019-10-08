@@ -38,6 +38,12 @@ def checkSymbol(line):
         return False
 
 def addNewSymbol(symbol, lc):
+    # This adds new symbol to the symbol table
+    # The next 3 commands just remove ":" from symbol name
+    symbol=symbol[::-1]
+    symbol=symbol[1:]
+    symbol=symbol[::-1]
+    # print(symbol)
     if (symbol in symbolTable):
         # THis will throw error in future
         print("Duplicate Symbol")
@@ -92,7 +98,7 @@ with open('input.assembly', 'r') as reader:
                 addLiteral(literal)
             opcode = getOpcode(parts)
             # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
-            if (opcode == False):
+            if (opcode== False):
                 pseudoOpcode = isPseudoOpcode(parts)
                 break
             else:
