@@ -22,11 +22,13 @@ opcodeTable = {
 
 
 def comment(line):
+    # Checks if the line is a comment or not
     if (line != "\n" and line.strip()[0] == "#"):
         return True
     return False
 
 def checkSymbol(line):
+    # Checks if the line is a symbol, this is done by checking if a ":" occurs in the line
     if (line == "\n"):
         return False
     couldBeSymbol = line.strip().split(' ')[0]
@@ -83,10 +85,10 @@ with open('input.assembly', 'r') as reader:
         length = 0
         if (not comment(line)):
             symbol = checkSymbol(line)
-            if (symbol != False):
+            if (symbol):
                 addNewSymbol(symbol, lc)
             literal = checkLiteral(line)
-            if (literal != False):
+            if (literal):
                 addLiteral(literal)
             opcode = getOpcode(parts)
             # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
@@ -102,7 +104,7 @@ with open('input.assembly', 'r') as reader:
             if (opcode[0] == "1100"):
                 # The end of the file
                 removeRedundantLiterals()
-            print(opcode)
+            # print(opcode)
         line = reader.readline()
 
 print(symbolTable)
