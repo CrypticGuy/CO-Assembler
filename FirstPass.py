@@ -1,23 +1,32 @@
 symbolTable   = {} # Hash table to implement symbol table
-literalTable = {} # dict to implement literals
+literalTable  = {} # dict to implement literals
 macrosTable   = {} # to keep track of macros
+opcodeTable   = [] # to keep track of opcode instructions
 lc = 0 # Location Counter
 
-# assemblyCode : [Opcode, instructionSize]
-opcodeTable = {
-    "CLA": ["0000", 1], # Clear Accumulator
-    "LAC": ["0001", 1], # Load into AC from Address
-    "SAC": ["0010", 1], # Store AC into address
-    "ADD": ["0011", 1], # AC <- AC + M[x]
-    "SUB": ["0100", 1], # AC <- AC - M[x]
-    "BRZ": ["0101", 1], # Branch to address if AC == 0
-    "BRN": ["0110", 1], # Branch to address if AC < 0 
-    "BRP": ["0111", 1], # Branch to address if AC > 0
-    "INP": ["1000", 1], # Take Input from terminal into address
-    "DSP": ["1001", 1], # Display value in address
-    "MUL": ["1010", 1], # AC <- AC * M[x]
-    "DIV": ["1011", 1], # AC / M[x] -> R1 and AC % M[x] -> R2
-    "STP": ["1100", 1], # Stop Execution
+# Proposal:
+# We should add literals like "=5"
+# This means we need to provide absolute value of 5 here
+
+# We can define variables in a separate section
+# .WORD ( initiates that section )
+# DW <Variable_Name> <Variable_Value> 
+
+# assemblyCode : [Opcode, instructionSize, noOfArguments]
+opcodeList = {
+    "CLA": ["0000", 2, 0], # Clear Accumulator
+    "LAC": ["0001", 2, 1], # Load into AC from Address
+    "SAC": ["0010", 2, 1], # Store AC into address
+    "ADD": ["0011", 2, 1], # AC <- AC + M[x]
+    "SUB": ["0100", 2, 1], # AC <- AC - M[x]
+    "BRZ": ["0101", 2, 1], # Branch to address if AC == 0
+    "BRN": ["0110", 2, 1], # Branch to address if AC < 0 
+    "BRP": ["0111", 2, 1], # Branch to address if AC > 0
+    "INP": ["1000", 2, 1], # Take Input from terminal into address
+    "DSP": ["1001", 2, 1], # Display value in address
+    "MUL": ["1010", 2, 1], # AC <- AC * M[x]
+    "DIV": ["1011", 2, 1], # AC / M[x] -> R1 and AC % M[x] -> R2
+    "STP": ["1100", 2, 0], # Stop Execution
 }
 
 
@@ -45,8 +54,9 @@ def checkLiteral(line):
     # Need to be implemented
     return False
 
-def addLiteral(literal):
+def addLiteral(literal, value):
     # Need to implement add literal
+
     return True
 
 def getOpcode(parts):
@@ -56,7 +66,7 @@ def getOpcode(parts):
     if (parts[0][-1] != ':'):
         i = 0
     try:
-        x = opcodeTable[parts[i]]
+        x = opcodeList[parts[i]]
         return x
     except:
         print("%s is not a valid opcode!", parts[i])
@@ -97,12 +107,18 @@ with open('input.assembly', 'r') as reader:
                 assemblyCode = 0
                 if (symbol):
                     assemblyCode = 1
-                instructionSize = opcodeTable[parts[assemblyCode]][1]
-                lc += instructionSize
+                instructionSize = opcodeList[parts[assemblyCode]][1]
             if (opcode[0] == "1100"):
                 # The end of the file
                 removeRedundantLiterals()
-            print(opcode)
+            #print(opcode)
+            if (opcodeList[parts[assemblyCode]][2] == 1):
+                opcodeTable.append([opcode[0], lc, parts[assemblyCode+1], 2]) # Keep 2 because of no. of bytes being 16
+            else:
+                opcodeTable.append([opcode[0], lc, -1, 2]) # -1 signifies does not exist
+            lc += instructionSize
         line = reader.readline()
 
 print(symbolTable)
+for x in opcodeTable:
+    print(x)
