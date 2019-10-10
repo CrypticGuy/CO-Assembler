@@ -14,19 +14,19 @@ lc = 0 # Location Counter
 
 # assemblyCode : [Opcode, instructionSize, noOfArguments]
 opcodeList = {
-    "CLA": ["0000", 2, 0], # Clear Accumulator
-    "LAC": ["0001", 2, 1], # Load into AC from Address
-    "SAC": ["0010", 2, 1], # Store AC into address
-    "ADD": ["0011", 2, 1], # AC <- AC + M[x]
-    "SUB": ["0100", 2, 1], # AC <- AC - M[x]
-    "BRZ": ["0101", 2, 1], # Branch to address if AC == 0
-    "BRN": ["0110", 2, 1], # Branch to address if AC < 0 
-    "BRP": ["0111", 2, 1], # Branch to address if AC > 0
-    "INP": ["1000", 2, 1], # Take Input from terminal into address
-    "DSP": ["1001", 2, 1], # Display value in address
-    "MUL": ["1010", 2, 1], # AC <- AC * M[x]
-    "DIV": ["1011", 2, 1], # AC / M[x] -> R1 and AC % M[x] -> R2
-    "STP": ["1100", 2, 0], # Stop Execution
+    "CLA": ["0000", 2, 0, 1], # Clear Accumulator
+    "LAC": ["0001", 2, 1, 2], # Load into AC from Address
+    "SAC": ["0010", 2, 1, 3], # Store AC into address
+    "ADD": ["0011", 2, 1, 4], # AC <- AC + M[x]
+    "SUB": ["0100", 2, 1, 5], # AC <- AC - M[x]
+    "BRZ": ["0101", 2, 1, 6], # Branch to address if AC == 0
+    "BRN": ["0110", 2, 1, 7], # Branch to address if AC < 0 
+    "BRP": ["0111", 2, 1, 8], # Branch to address if AC > 0
+    "INP": ["1000", 2, 1, 9], # Take Input from terminal into address
+    "DSP": ["1001", 2, 1, 10], # Display value in address
+    "MUL": ["1010", 2, 1, 11], # AC <- AC * M[x]
+    "DIV": ["1011", 2, 1, 12], # AC / M[x] -> R1 and AC % M[x] -> R2
+    "STP": ["1100", 2, 0, 13], # Stop Execution
 }
 
 
@@ -77,7 +77,7 @@ def getOpcode(parts):
         x = opcodeList[parts[i]]
         return x
     except:
-        print("%s is not a valid opcode!", parts[i])
+        print("%s is not a valid opcode!" % parts[i])
         return False
 
 def isPseudoOpcode(parts):
@@ -92,43 +92,95 @@ def removeRedundantLiterals():
     # Go through the literal table and remove extra entries
     return False
 
-with open('input.assembly', 'r') as reader:
-    line = reader.readline()
-    while line != '':
-        #print(line, end='')
-        parts = line.strip().split()
-        #print(parts)
-        length = 0
-        if (not comment(line)):
-            symbol = checkSymbol(line)
-            if (symbol):
-                addNewSymbol(symbol, lc)
-            literal = checkLiteral(line)
-            if (literal):
-                addLiteral(literal)
-            opcode = getOpcode(parts)
-            # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
-            if (opcode== False):
-                pseudoOpcode = isPseudoOpcode(parts)
-                break
-            else:
-                assemblyCode = 0
+def getType(parts):
+    return 1
+
+
+def decimalToBinary(dec):
+    return "{0:012b}".format(int(dec))
+
+def getVariableAddr(var):
+    return var
+
+def generateOutput(opcode, parts):
+    if (opcode == False):
+        return '\n'
+    #print(parts)
+    startPoint = 0
+    if (parts[0][-1] == ':'):
+        startPoint = 1
+    if (opcode[0] == '0000'):
+        return opcode[0] + '\n'
+    #elif (opcode == '0001' or opcode == '0010' or opcode == '0011' or opcode == '0100'):
+    elif (opcode[0] != '1100'):
+        addr = '000000000000\n'
+        if (parts[startPoint+1].isdigit()):
+            addr = decimalToBinary(parts[startPoint +1])
+        else:
+            addr = getVariableAddr(parts[startPoint +1])
+        return opcode[0] + addr + '\n'
+    else:
+        return '\n'
+
+def passOne():
+    with open('input.assembly', 'r') as reader:
+        #line = reader.readline()
+        lc = 0
+        for line in reader:
+            #print(line, end='')
+            parts = line.strip().split()
+            #print(parts)
+            length = 0
+            if (not comment(line)):
+                symbol = checkSymbol(line)
                 if (symbol):
-                    assemblyCode = 1
-                instructionSize = opcodeList[parts[assemblyCode]][1]
-            if (opcode[0] == "1100"):
-                # The end of the file
-                removeRedundantLiterals()
-            #print(opcode)
-            if (opcodeList[parts[assemblyCode]][2] == 1):
-                opcodeTable.append([opcode[0], lc, parts[assemblyCode+1], 2]) # Keep 2 because of no. of bytes being 16
-            else:
-                opcodeTable.append([opcode[0], lc, -1, 2]) # -1 signifies does not exist
+                    addNewSymbol(symbol, lc)
+                literal = checkLiteral(line)
+                if (literal):
+                    addLiteral(literal)
+                opcode = getOpcode(parts)
+                # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
+                if (opcode == False):
+                    pseudoOpcode = isPseudoOpcode(parts)
+                    #lc += instructionSize
+                    continue
+                else:
+                    assemblyCode = 0
+                    if (symbol):
+                        assemblyCode = 1
+                    instructionSize = opcodeList[parts[assemblyCode]][1]
+                if (opcode[0] == "1100"):
+                    # The end of the file
+                    removeRedundantLiterals()
+                #print(opcode)
+                if (opcodeList[parts[assemblyCode]][2] == 1):
+                    opcodeTable.append([opcode[0], lc, parts[assemblyCode+1], 2]) # Keep 2 because of no. of bytes being 16
+                else:
+                    opcodeTable.append([opcode[0], lc, -1, 2]) # -1 signifies does not exist
             lc += instructionSize
+            #line = reader.readline()
 
+def passTwo():
+    arr = []
+    with open('input.assembly', 'r') as reader:
+        lc = 0
+        for line in reader:
+            parts = line.strip().split()
+            typeCommand = getType(parts)
+            opcode = getOpcode(parts)
+            code = "\n"
+            if (typeCommand != 0):
+                print(opcode, parts)
+                code = generateOutput(opcode, parts)
+            #print(code)
+            arr.append(code)
+            lc += 2
+    return arr
 
-        line = reader.readline()
-
-print(symbolTable)
+passOne()
 for x in opcodeTable:
     print(x)
+output = passTwo()
+for o in output:
+    print(o, end='')
+#print(symbolTable)
