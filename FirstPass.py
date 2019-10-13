@@ -12,23 +12,26 @@ lc = 0 # Location Counter
 # .WORD ( initiates that section )
 # DW <Variable_Name> <Variable_Value> 
 
-# assemblyCode : [Opcode, instructionSize, noOfArguments]
+# assemblyCode : [Opcode, instructionSize, noOfArguments, opcodeID]
 opcodeList = {
-    "CLA": ["0000", 2, 0, 1], # Clear Accumulator
-    "LAC": ["0001", 2, 1, 2], # Load into AC from Address
-    "SAC": ["0010", 2, 1, 3], # Store AC into address
-    "ADD": ["0011", 2, 1, 4], # AC <- AC + M[x]
-    "SUB": ["0100", 2, 1, 5], # AC <- AC - M[x]
-    "BRZ": ["0101", 2, 1, 6], # Branch to address if AC == 0
-    "BRN": ["0110", 2, 1, 7], # Branch to address if AC < 0 
-    "BRP": ["0111", 2, 1, 8], # Branch to address if AC > 0
-    "INP": ["1000", 2, 1, 9], # Take Input from terminal into address
-    "DSP": ["1001", 2, 1, 10], # Display value in address
-    "MUL": ["1010", 2, 1, 11], # AC <- AC * M[x]
-    "DIV": ["1011", 2, 1, 12], # AC / M[x] -> R1 and AC % M[x] -> R2
-    "STP": ["1100", 2, 0, 13], # Stop Execution
+    "CLA": ["0000", 1, 0, 1], # Clear Accumulator
+    "LAC": ["0001", 1, 1, 2], # Load into AC from Address
+    "SAC": ["0010", 1, 1, 3], # Store AC into address
+    "ADD": ["0011", 1, 1, 4], # AC <- AC + M[x]
+    "SUB": ["0100", 1, 1, 5], # AC <- AC - M[x]
+    "BRZ": ["0101", 1, 1, 6], # Branch to address if AC == 0
+    "BRN": ["0110", 1, 1, 7], # Branch to address if AC < 0 
+    "BRP": ["0111", 1, 1, 8], # Branch to address if AC > 0
+    "INP": ["1000", 1, 1, 9], # Take Input from terminal into address
+    "DSP": ["1001", 1, 1, 10], # Display value in address
+    "MUL": ["1010", 1, 1, 11], # AC <- AC * M[x]
+    "DIV": ["1011", 1, 1, 12], # AC / M[x] -> R1 and AC % M[x] -> R2
+    "STP": ["1100", 1, 0, 13], # Stop Execution
 }
 
+initialOffset = 0
+hasStart = False
+hasError = False
 
 def comment(line):
     # Checks if the line is a comment or not
@@ -55,8 +58,8 @@ def addNewSymbol(symbol, lc):
     # print(symbol)
     if (symbol in symbolTable):
         # THis will throw error in future
-        print("Duplicate Symbol")
-    symbolTable[symbol] = lc
+        print("Error: Duplicate Symbol %s" % symbol)
+    symbolTable[symbol] = decimalToBinary(lc)
 
 def checkLiteral(line):
     # Need to be implemented
@@ -68,12 +71,20 @@ def addLiteral(literal, value):
     return True
 
 def getOpcode(parts):
+    global hasStart
+    global initialOffset
     i = 1
     if (len(parts) <= 0):
         return False
     if (parts[0][-1] != ':'):
         i = 0
     try:
+        if (parts[0] == 'START' and len(parts == 2)):
+            if (hasStart):
+                print("Can't have 2 START statements")
+            else:
+                hasStart = True
+                initialOffset = int(parts[1])
         x = opcodeList[parts[i]]
         return x
     except:
@@ -95,7 +106,6 @@ def removeRedundantLiterals():
 def getType(parts):
     return 1
 
-
 def decimalToBinary(dec):
     return "{0:012b}".format(int(dec))
 
@@ -103,6 +113,8 @@ def getVariableAddr(var):
     return var
 
 def generateOutput(opcode, parts):
+    global hasError
+
     if (opcode == False):
         return '\n'
     #print(parts)
@@ -110,14 +122,19 @@ def generateOutput(opcode, parts):
     if (parts[0][-1] == ':'):
         startPoint = 1
     if (opcode[0] == '0000'):
-        return opcode[0] + '\n'
+        return opcode[0] + '000000000000' + '\n'
     #elif (opcode == '0001' or opcode == '0010' or opcode == '0011' or opcode == '0100'):
     elif (opcode[0] != '1100'):
         addr = '000000000000\n'
         if (parts[startPoint+1].isdigit()):
             addr = decimalToBinary(parts[startPoint +1])
         else:
-            addr = getVariableAddr(parts[startPoint +1])
+            try:
+                addr = symbolTable[getVariableAddr(parts[startPoint +1])]
+            except:
+                print("Symbol %s not found in the symbol table!" % getVariableAddr(parts[startPoint +1]))
+                hasError = True
+                return
         return opcode[0] + addr + '\n'
     else:
         return '\n'
@@ -154,9 +171,10 @@ def passOne():
                     removeRedundantLiterals()
                 #print(opcode)
                 if (opcodeList[parts[assemblyCode]][2] == 1):
-                    opcodeTable.append([opcode[0], lc, parts[assemblyCode+1], 2]) # Keep 2 because of no. of bytes being 16
+                    #print(opcode)
+                    opcodeTable.append([parts[assemblyCode], opcode[0], lc, parts[assemblyCode+1], 1]) # Keep 2 because of no. of bytes being 16
                 else:
-                    opcodeTable.append([opcode[0], lc, -1, 2]) # -1 signifies does not exist
+                    opcodeTable.append([parts[assemblyCode],opcode[0], lc, -1, 2]) # -1 signifies does not exist
             lc += instructionSize
             #line = reader.readline()
 
@@ -170,17 +188,25 @@ def passTwo():
             opcode = getOpcode(parts)
             code = "\n"
             if (typeCommand != 0):
-                print(opcode, parts)
+                #print(opcode, parts)
                 code = generateOutput(opcode, parts)
             #print(code)
             arr.append(code)
-            lc += 2
+            lc += 1
     return arr
 
 passOne()
-for x in opcodeTable:
-    print(x)
+#for x in opcodeTable:
+#    print(x)
 output = passTwo()
-for o in output:
-    print(o, end='')
-#print(symbolTable)
+
+if (not hasError):
+    for o in output:
+        print(o, end='')
+
+print("\nOpcode Table:")
+for oT in opcodeTable:
+    print(oT)
+
+print("\nSymbol Table:")
+print(symbolTable)
