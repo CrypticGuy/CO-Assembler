@@ -59,7 +59,7 @@ def addNewSymbol(symbol, lc):
     if (symbol in symbolTable):
         # THis will throw error in future
         print("Error: Duplicate Symbol %s" % symbol)
-    symbolTable[symbol] = decimalToBinary(lc)
+    symbolTable[symbol] = int(lc)
 
 def checkLiteral(line):
     # Need to be implemented
@@ -79,16 +79,19 @@ def getOpcode(parts):
     if (parts[0][-1] != ':'):
         i = 0
     try:
-        if (parts[0] == 'START' and len(parts == 2)):
+        #print(parts)
+        if (parts[0] == 'START' and len(parts) == 2):   
             if (hasStart):
                 print("Can't have 2 START statements")
             else:
                 hasStart = True
                 initialOffset = int(parts[1])
+                return False
         x = opcodeList[parts[i]]
         return x
     except:
-        print("%s is not a valid opcode!" % parts[i])
+        if (parts[0] != 'START'):
+            print("%s is not a valid opcode!" % parts[i])
         return False
 
 def isPseudoOpcode(parts):
@@ -121,21 +124,21 @@ def generateOutput(opcode, parts):
     startPoint = 0
     if (parts[0][-1] == ':'):
         startPoint = 1
-    if (opcode[0] == '0000'):
-        return opcode[0] + '000000000000' + '\n'
+    if (opcode == '0000'):
+        return opcode + '000000000000' + '\n'
     #elif (opcode == '0001' or opcode == '0010' or opcode == '0011' or opcode == '0100'):
-    elif (opcode[0] != '1100'):
+    elif (opcode != '1100'):
         addr = '000000000000\n'
-        if (parts[startPoint+1].isdigit()):
-            addr = decimalToBinary(parts[startPoint +1])
+        if (parts[1].isdigit()):
+            addr = decimalToBinary(str(parts[1]))
         else:
             try:
-                addr = symbolTable[getVariableAddr(parts[startPoint +1])]
+                addr = decimalToBinary(str(symbolTable[getVariableAddr(parts[1])] + initialOffset))
             except:
-                print("Symbol %s not found in the symbol table!" % getVariableAddr(parts[startPoint +1]))
+                print("Symbol %s not found in the symbol table!" % getVariableAddr(parts[1]))
                 hasError = True
                 return
-        return opcode[0] + addr + '\n'
+        return opcode + addr + '\n'
     else:
         return '\n'
 
@@ -180,19 +183,23 @@ def passOne():
 
 def passTwo():
     arr = []
-    with open('input.assembly', 'r') as reader:
+    #with open('input.assembly', 'r') as reader:
+    for line in opcodeTable:
         lc = 0
-        for line in reader:
-            parts = line.strip().split()
-            typeCommand = getType(parts)
-            opcode = getOpcode(parts)
-            code = "\n"
-            if (typeCommand != 0):
-                #print(opcode, parts)
-                code = generateOutput(opcode, parts)
-            #print(code)
-            arr.append(code)
-            lc += 1
+        #for line in reader:
+        #parts = line.strip().split()
+        parts = [line[1], str(line[3])]
+        #typeCommand = getType(parts)
+        typeCommand = line[2]
+        #opcode = getOpcode(parts)
+        opcode = line[1]
+        code = "\n"
+        if (typeCommand != 0):
+            #print(opcode, parts)
+            code = generateOutput(opcode, parts)
+        #print(code)
+        arr.append(code)
+        lc += 1
     return arr
 
 passOne()
