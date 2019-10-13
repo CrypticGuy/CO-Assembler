@@ -67,9 +67,9 @@ def checkLiteral(line):
         return couldBeLiteral
     return False
 
-def addLiteral(literal, value):
-    # Need to implement add literal
-
+def addLiteral(literal):
+    # Literal added in form of "='2'"
+    literalTable[literal] = -1
     return True
 
 def getOpcode(parts):
@@ -135,7 +135,7 @@ def passOne():
             #print(line, end='')
             parts = line.strip().split()
             #print(parts)
-            length = 0
+            # length = 0
             if (not comment(line)):
                 symbol = checkSymbol(line)
                 if (symbol):
