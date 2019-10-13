@@ -103,10 +103,6 @@ def isPseudoOpcode(parts):
     # Will be used if we add any pseudo literals to our language -> most prob wont be used
     return False
 
-def handleMacros():
-    # This will be tricky
-    return False
-
 def removeRedundantLiterals():
     # Go through the literal table and remove extra entries
     return False
@@ -129,7 +125,7 @@ def generateOutput(opcode, parts):
     startPoint = 0
     if (parts[0][-1] == ':'):
         startPoint = 1
-    if (opcode == '0000'):
+    if (opcode == '0000' or opcode == '1100'):
         return opcode + '000000000000' + '\n'
     #elif (opcode == '0001' or opcode == '0010' or opcode == '0011' or opcode == '0100'):
     elif (opcode != '1100'):
@@ -191,6 +187,7 @@ def passTwo():
     #with open('input.assembly', 'r') as reader:
     for line in opcodeTable:
         lc = 0
+        #print(line)
         #for line in reader:
         #parts = line.strip().split()
         parts = [line[1], str(line[3])]
@@ -199,7 +196,7 @@ def passTwo():
         #opcode = getOpcode(parts)
         opcode = line[1]
         code = "\n"
-        if (typeCommand != 0):
+        if (typeCommand != -1):
             #print(opcode, parts)
             code = generateOutput(opcode, parts)
         #print(code)
