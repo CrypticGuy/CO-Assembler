@@ -59,7 +59,12 @@ def addNewSymbol(symbol, lc):
     symbolTable[symbol] = lc
 
 def checkLiteral(line):
-    # Need to be implemented
+    #Checks if the line is a literal, this is done by checking if a "=" occurs in the line
+    if(line =="\n"):
+        return False
+    couldBeLiteral = line.strip().split(' ')[0]
+    if(couldBeLiteral[0]=='='):
+        return couldBeLiteral
     return False
 
 def addLiteral(literal, value):
