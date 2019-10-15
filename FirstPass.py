@@ -59,7 +59,7 @@ def checkSymbol(line):
     else:
         return False
 
-def addNewSymbol(symbol, lc):
+def addNewSymbol(symbol, lc, lines):
     global hasError
     # This adds new symbol to the symbol table
     # The next 3 commands just remove ":" from symbol name
@@ -69,7 +69,7 @@ def addNewSymbol(symbol, lc):
     # print(symbol)
     if (symbol in symbolTable):
         # THis will throw error in future
-        print("Error: Duplicate Symbol %s at line %d" % (symbol, lc))
+        print("Error: Duplicate Symbol %s at line %d" % (symbol, lines))
         hasError = True
     symbolTable[symbol] = [int(lc), 'symbol']
 
@@ -172,10 +172,12 @@ def passOne():
     global hasStopped
     global hasEnded
     global hasError
+    lines = 0
     with open('input.assembly', 'r') as reader:
         #line = reader.readline()
         lc = 0
         for line in reader:
+            lines += 1
             #print(line, end='')
             parts = line.strip().split()
             #print(parts)
@@ -184,12 +186,12 @@ def passOne():
                 hasEnded = True
                 break
             if (not comment(line) and not hasEnded):
-                opcode = getOpcode(parts, lc) # get the opcode associated with this line
+                opcode = getOpcode(parts, lines) # get the opcode associated with this line
                 symbol = checkSymbol(line)
                 #print(opcode)
                 if (symbol):
-                    addNewSymbol(symbol, lc)
-                literal = checkLiteralVariable(line, opcode, lc)
+                    addNewSymbol(symbol, lc, lines)
+                literal = checkLiteralVariable(line, opcode, lines)
                 if (literal):
                     addLiteral(literal, opcode)
                 # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
@@ -219,6 +221,7 @@ def passOne():
                 break
 
         for line in reader:
+            lines += 1
             parts = line.strip().split()
             if (parts[0] == 'END'):
                 hasEnded = True
@@ -233,7 +236,7 @@ def passOne():
                         variableValue = parts[2]
                     symbolTable[variableName] = [-1, 'var', variableValue]
                 else:
-                    print("Invalid Statement!")
+                    print("Error: Invalid Statement at line no. %d" % lines)
             except IndexError:
                 print("Expected Variable Declaration Statement")
                 print("Invalid Statement - %s" % line)
