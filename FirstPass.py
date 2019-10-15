@@ -29,9 +29,17 @@ opcodeList = {
     "STP": ["1100", 1, 0, 13], # Stop Execution
 }
 
+# opcodes with arguments
+lit = ["0001","0011","0100","1010","1011"]
+var = ["0001", "0010", "1000", "1001"]
+branch = ["0101", "0110", "0111"]
+mustValue = ["1010", "1011", "1001", "0011", "0100", "0001"]
+
 initialOffset = 0
 hasStart = False
 hasError = False
+hasStopped = False
+hasEnded = False
 
 def comment(line):
     # Checks if the line is a comment or not
@@ -59,20 +67,49 @@ def addNewSymbol(symbol, lc):
     if (symbol in symbolTable):
         # THis will throw error in future
         print("Error: Duplicate Symbol %s" % symbol)
-    symbolTable[symbol] = int(lc)
+    symbolTable[symbol] = [int(lc), 'symbol']
 
-def checkLiteral(line):
+def checkLiteralVariable(line, opcode):
+    if (opcode == False or opcode == True):
+        return [False]
     #Checks if the line is a literal, this is done by checking if a "=" occurs in the line
     if(line =="\n"):
-        return False
-    couldBeLiteral = line.strip().split(' ')[0]
-    if(couldBeLiteral[0]=='='):
-        return couldBeLiteral
-    return False
+        return [False]
+    couldBeLiteral = line.strip().split(' ')
+    if (couldBeLiteral == False):
+        return [False]
+    try:
+        #print(opcode[1] + 1)
+        couldBeLiteral = couldBeLiteral[opcode[1] + 1]
+        #print(couldBeLiteral)
+        if(couldBeLiteral[0]=='='):
+            if (opcode[0] in lit):
+                return [couldBeLiteral, 'literal']
+            else:
+                print("Cant use a literal with opcode %s" % opcode[2])
+                return [False]
+        elif(couldBeLiteral.isdigit()):
+            return [False]
+        else:
+            if (opcode[0] in lit or opcode[0] in var):
+                if (opcode[0] in  mustValue):
+                    return [couldBeLiteral, 'var', None]
+                else:
+                    return [couldBeLiteral, 'var', 0] 
+    except IndexError:
+        if (opcode[0] in lit):
+            print("Address/Variable/Literal required with this opcode")
+    except: 
+        print("Some error has occured")
+    return [False]
 
 def addLiteral(literal):
     # Literal added in form of "='2'"
-    literalTable[literal] = -1
+    if (literal[0] is not False):
+        if (literal[1] == 'var'):
+            symbolTable[literal[0]] = [-1, literal[1], literal[2]]
+        else:
+            literalTable[literal[0]] = [-1, literal[1]]
     return True
 
 def getOpcode(parts):
@@ -92,7 +129,9 @@ def getOpcode(parts):
                 hasStart = True
                 initialOffset = int(parts[1])
                 return False
-        x = opcodeList[parts[i]]
+        x = [opcodeList[parts[i]][0]]
+        x.append(i)
+        x.append(parts[i])
         return x
     except:
         if (parts[0] != 'START'):
@@ -116,9 +155,92 @@ def decimalToBinary(dec):
 def getVariableAddr(var):
     return var
 
+def passOne():
+    global hasStopped
+    global hasEnded
+    global hasError
+    with open('input.assembly', 'r') as reader:
+        #line = reader.readline()
+        lc = 0
+        for line in reader:
+            #print(line, end='')
+            parts = line.strip().split()
+            #print(parts)
+            # length = 0
+            if (parts[0] == 'END'):
+                hasEnded = True
+                break
+            if (not comment(line) and not hasEnded):
+                opcode = getOpcode(parts) # get the opcode associated with this line
+                symbol = checkSymbol(line)
+                #print(opcode)
+                if (symbol):
+                    addNewSymbol(symbol, lc)
+                literal = checkLiteralVariable(line, opcode)
+                if (literal):
+                    addLiteral(literal)
+                # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
+                if (opcode == False):
+                    pseudoOpcode = isPseudoOpcode(parts)
+                    #lc += instructionSize
+                    continue
+                else:
+                    assemblyCode = 0
+                    if (symbol):
+                        assemblyCode = 1
+                    instructionSize = opcodeList[parts[assemblyCode]][1]
+                if (opcode[0] == "1100"):
+                    # The end of the file
+                    removeRedundantLiterals()
+                    hasStopped = True
+                #print(opcode)
+                if (opcodeList[parts[assemblyCode]][2] == 1):
+                    #print(opcode)
+                    opcodeTable.append([parts[assemblyCode], opcode[0], lc, parts[assemblyCode+1], 1]) # Keep 2 because of no. of bytes being 16
+                else:
+                    opcodeTable.append([parts[assemblyCode],opcode[0], lc, -1, 2]) # -1 signifies does not exist
+            lc += instructionSize
+            if (hasStopped):
+                break
+
+        for line in reader:
+            parts = line.strip().split()
+            if (parts[0] == 'END'):
+                hasEnded = True
+                break
+            try:
+                if (parts[0][0] == '#'):
+                    continue
+                elif (parts[1] == 'DW'):
+                    variableName = parts[0]
+                    variableValue = None
+                    if (len(parts) >= 3 and parts[2].isdigit()): 
+                        variableValue = parts[2]
+                    symbolTable[variableName] = [-1, 'var', variableValue]
+                else:
+                    print("Invalid Statement!")
+            except IndexError:
+                print("Expected Variable Declaration Statement")
+                print("Invalid Statement - %s" % line)
+                hasError = True
+            except: 
+                print("Expected Variable Declaration Statement")
+                print("Invalid Statement - %s" % line)
+        for key in symbolTable.keys():
+            if (symbolTable[key][1] == 'var'):
+                symbolTable[key][0] = lc
+                lc += instructionSize
+        for key in literalTable.keys():
+            literalTable[key][0] = lc
+            lc += instructionSize
+            #line = reader.readline()
+
 def generateOutput(opcode, parts):
     global hasError
-
+    global hasStopped
+    if (hasStopped == False):
+        hasError = True
+    #print(parts)
     if (opcode == False):
         return '\n'
     #print(parts)
@@ -134,7 +256,16 @@ def generateOutput(opcode, parts):
             addr = decimalToBinary(str(parts[1]))
         else:
             try:
-                addr = decimalToBinary(str(symbolTable[getVariableAddr(parts[1])] + initialOffset))
+                if (opcode in branch and parts[1] in symbolTable):
+                    addr = decimalToBinary(str(symbolTable[getVariableAddr(parts[1])][0] + initialOffset))
+                elif (parts[1] in symbolTable and (opcode in lit or opcode in var)):
+                    if (symbolTable[parts[1]][2] is None):
+                        print("Variable Value not defined - %s is undefined" % parts[1])
+                        hasError = True
+                    addr = decimalToBinary(str(symbolTable[getVariableAddr(parts[1])][0] + initialOffset))
+                else:
+                    addr = decimalToBinary(str(literalTable[getVariableAddr(parts[1])][0] + initialOffset))
+                    #print("Addr" + addr)
             except:
                 print("Symbol %s not found in the symbol table!" % getVariableAddr(parts[1]))
                 hasError = True
@@ -142,45 +273,6 @@ def generateOutput(opcode, parts):
         return opcode + addr + '\n'
     else:
         return '\n'
-
-def passOne():
-    with open('input.assembly', 'r') as reader:
-        #line = reader.readline()
-        lc = 0
-        for line in reader:
-            #print(line, end='')
-            parts = line.strip().split()
-            #print(parts)
-            # length = 0
-            if (not comment(line)):
-                symbol = checkSymbol(line)
-                if (symbol):
-                    addNewSymbol(symbol, lc)
-                literal = checkLiteral(line)
-                if (literal):
-                    addLiteral(literal)
-                opcode = getOpcode(parts)
-                # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
-                if (opcode == False):
-                    pseudoOpcode = isPseudoOpcode(parts)
-                    #lc += instructionSize
-                    continue
-                else:
-                    assemblyCode = 0
-                    if (symbol):
-                        assemblyCode = 1
-                    instructionSize = opcodeList[parts[assemblyCode]][1]
-                if (opcode[0] == "1100"):
-                    # The end of the file
-                    removeRedundantLiterals()
-                #print(opcode)
-                if (opcodeList[parts[assemblyCode]][2] == 1):
-                    #print(opcode)
-                    opcodeTable.append([parts[assemblyCode], opcode[0], lc, parts[assemblyCode+1], 1]) # Keep 2 because of no. of bytes being 16
-                else:
-                    opcodeTable.append([parts[assemblyCode],opcode[0], lc, -1, 2]) # -1 signifies does not exist
-            lc += instructionSize
-            #line = reader.readline()
 
 def passTwo():
     arr = []
@@ -219,3 +311,4 @@ for oT in opcodeTable:
 
 print("\nSymbol Table:")
 print(symbolTable)
+print(literalTable)
