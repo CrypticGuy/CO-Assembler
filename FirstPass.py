@@ -1,3 +1,6 @@
+# Assembler Code
+
+
 symbolTable   = {} # Hash table to implement symbol table
 literalTable  = {} # dict to implement literals
 macrosTable   = {} # to keep track of macros
@@ -84,11 +87,14 @@ def checkLiteralVariable(line, opcode, lc):
         #print(opcode[1] + 1)
         couldBeLiteral = couldBeLiteral[opcode[1] + 1]
         #print(couldBeLiteral)
-        if(couldBeLiteral[0]=='='):
+        if (couldBeLiteral[0] == '#'):
+            # This will be a comment
+            return [False]
+        elif(couldBeLiteral[0]=='='):
             if (opcode[0] in lit):
                 return [couldBeLiteral, 'literal']
             else:
-                print("Cant use a literal with opcode %s at line %d" % (opcode[2], lc))
+                print("Error: Cant use a literal with opcode %s at line %d" % (opcode[2], lc))
                 hasError = True
                 return [False]
         elif(couldBeLiteral.isdigit()):
@@ -106,7 +112,7 @@ def checkLiteralVariable(line, opcode, lc):
         print("Some error has occured")
     return [False]
 
-def addLiteral(literal):
+def addLiteral(literal, opcode):
     # Literal added in form of "='2'"
     if (literal[0] is not False):
         if (literal[1] == 'var'):
@@ -115,7 +121,7 @@ def addLiteral(literal):
             literalTable[literal[0]] = [-1, literal[1]]
     return True
 
-def getOpcode(parts):
+def getOpcode(parts, lc):
     global hasStart
     global initialOffset
     i = 1
@@ -127,10 +133,14 @@ def getOpcode(parts):
         #print(parts)
         if (parts[0] == 'START' and len(parts) == 2):   
             if (hasStart):
-                print("Can't have 2 START statements")
+                print("Error: Can't have 2 START statements. At line no. %d" % (lc))
             else:
                 hasStart = True
-                initialOffset = int(parts[1])
+                initialOffset = 0
+                try:
+                    initialOffset = int(parts[1])
+                except ValueError:
+                    print("Error: Argument with START should be a number. At Line No. %d" % lc)
                 return False
         x = [opcodeList[parts[i]][0]]
         x.append(i)
@@ -174,14 +184,14 @@ def passOne():
                 hasEnded = True
                 break
             if (not comment(line) and not hasEnded):
-                opcode = getOpcode(parts) # get the opcode associated with this line
+                opcode = getOpcode(parts, lc) # get the opcode associated with this line
                 symbol = checkSymbol(line)
                 #print(opcode)
                 if (symbol):
                     addNewSymbol(symbol, lc)
                 literal = checkLiteralVariable(line, opcode, lc)
                 if (literal):
-                    addLiteral(literal)
+                    addLiteral(literal, opcode)
                 # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
                 if (opcode == False):
                     pseudoOpcode = isPseudoOpcode(parts)
@@ -198,8 +208,10 @@ def passOne():
                     hasStopped = True
                 #print(opcode)
                 if (opcodeList[parts[assemblyCode]][2] == 1):
-                    #print(opcode)
-                    opcodeTable.append([parts[assemblyCode], opcode[0], lc, parts[assemblyCode+1], 1]) # Keep 2 because of no. of bytes being 16
+                    if (parts[assemblyCode + 1][0] == '#'):
+                        opcodeTable.append([parts[assemblyCode], opcode[0], lc, -1, 1])
+                    else:
+                        opcodeTable.append([parts[assemblyCode], opcode[0], lc, parts[assemblyCode+1], 1]) # Keep 2 because of no. of bytes being 16
                 else:
                     opcodeTable.append([parts[assemblyCode],opcode[0], lc, -1, 2]) # -1 signifies does not exist
             lc += instructionSize
@@ -238,7 +250,7 @@ def passOne():
             lc += instructionSize
             #line = reader.readline()
 
-def generateOutput(opcode, parts):
+def generateOutput(opcode, parts, lc):
     global hasError
     global hasStopped
     if (hasStopped == False):
@@ -259,11 +271,15 @@ def generateOutput(opcode, parts):
             addr = decimalToBinary(str(parts[1]))
         else:
             try:
+                if (((opcode in branch) or (opcode in lit) or (opcode in var)) and parts[1] == '-1'):
+                    print("Error: Not Enough Arguments for opcode %s at line no. %d" % (opcode, lc))
+                    hasError = True
+                    return ""
                 if (opcode in branch and parts[1] in symbolTable):
                     addr = decimalToBinary(str(symbolTable[getVariableAddr(parts[1])][0] + initialOffset))
                 elif (parts[1] in symbolTable and (opcode in lit or opcode in var)):
                     if (symbolTable[parts[1]][2] is None):
-                        print("Variable Value not defined - %s is undefined" % parts[1])
+                        print("Error: Variable Value not defined - %s is undefined" % parts[1])
                         hasError = True
                     addr = decimalToBinary(str(symbolTable[getVariableAddr(parts[1])][0] + initialOffset))
                 else:
@@ -279,30 +295,58 @@ def generateOutput(opcode, parts):
 
 def passTwo():
     arr = []
-    #with open('input.assembly', 'r') as reader:
-    for line in opcodeTable:
+    with open('input.assembly', 'r') as reader:
         lc = 0
-        #print(line)
-        #for line in reader:
-        #parts = line.strip().split()
-        parts = [line[1], str(line[3])]
-        #typeCommand = getType(parts)
-        typeCommand = line[2]
-        #opcode = getOpcode(parts)
-        opcode = line[1]
-        code = "\n"
-        if (typeCommand != -1):
-            #print(opcode, parts)
-            code = generateOutput(opcode, parts)
-        #print(code)
-        arr.append(code)
-        lc += 1
+        lines = 1
+        for inp in reader:
+            #print(lines, inp)
+            try: 
+                if(inp.strip().split()[0] == '#'):
+                    # Comment Line Ignore
+                    continue
+                if (inp.strip().split()[0] == 'END'):
+                    break
+                #for line in opcodeTable:
+                line = opcodeTable[lc]
+                #lc = 0
+                #print(line)
+                #for line in reader:
+                #parts = line.strip().split()
+                parts = [line[1], str(line[3])]
+                #typeCommand = getType(parts)
+                typeCommand = line[2]
+                #opcode = getOpcode(parts)
+                opcode = line[1]
+                code = "\n"
+                if (typeCommand != -1):
+                    #print(opcode, parts)
+                    code = generateOutput(opcode, parts, lines)
+                #print(code)
+                arr.append(code)
+                lc += 1
+            except:
+                COMPLETED = True
+            lines += 1
     return arr
 
 passOne()
 #for x in opcodeTable:
 #    print(x)
+if (not hasStopped):
+    print("Error: STP statement was not found.")
+    hasError = True
+
+if (not hasStart):
+    print("Error: START statement was not found.")
+    hasError = True
+
+if (not hasEnded):
+    print("Error: You should have an END statement")
+    hasError = True
+
 output = passTwo()
+
+# Printing Everything in a Presentable Way
 
 if (not hasError):
     print("Generated Code: ")
