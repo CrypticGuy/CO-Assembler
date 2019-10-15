@@ -8,9 +8,8 @@ lc = 0 # Location Counter
 # We should add literals like "=5"
 # This means we need to provide absolute value of 5 here
 
-# We can define variables in a separate section
-# .WORD ( initiates that section )
-# DW <Variable_Name> <Variable_Value> 
+# We can define variables only after STP has been called
+# <Variable_Name> DW <Variable_Value> 
 
 # assemblyCode : [Opcode, instructionSize, noOfArguments, opcodeID]
 opcodeList = {
@@ -30,16 +29,16 @@ opcodeList = {
 }
 
 # opcodes with arguments
-lit = ["0001","0011","0100","1010","1011"]
-var = ["0001", "0010", "1000", "1001"]
-branch = ["0101", "0110", "0111"]
-mustValue = ["1010", "1011", "1001", "0011", "0100", "0001"]
+lit = ["0001","0011","0100","1010","1011"] # Opcode where literals and variables can be used
+var = ["0001", "0010", "1000", "1001"] # Opcode where only variables can be used
+branch = ["0101", "0110", "0111"] # Opcodes where only lable can be used
+mustValue = ["1010", "1011", "1001", "0011", "0100", "0001"] # opcodes whose variables should have value
 
 initialOffset = 0
-hasStart = False
-hasError = False
-hasStopped = False
-hasEnded = False
+hasStart      = False
+hasError      = False
+hasStopped    = False
+hasEnded      = False
 
 def comment(line):
     # Checks if the line is a comment or not
@@ -58,6 +57,7 @@ def checkSymbol(line):
         return False
 
 def addNewSymbol(symbol, lc):
+    global hasError
     # This adds new symbol to the symbol table
     # The next 3 commands just remove ":" from symbol name
     symbol=symbol[::-1]
@@ -66,10 +66,12 @@ def addNewSymbol(symbol, lc):
     # print(symbol)
     if (symbol in symbolTable):
         # THis will throw error in future
-        print("Error: Duplicate Symbol %s" % symbol)
+        print("Error: Duplicate Symbol %s at line %d" % (symbol, lc))
+        hasError = True
     symbolTable[symbol] = [int(lc), 'symbol']
 
-def checkLiteralVariable(line, opcode):
+def checkLiteralVariable(line, opcode, lc):
+    global hasError
     if (opcode == False or opcode == True):
         return [False]
     #Checks if the line is a literal, this is done by checking if a "=" occurs in the line
@@ -86,7 +88,8 @@ def checkLiteralVariable(line, opcode):
             if (opcode[0] in lit):
                 return [couldBeLiteral, 'literal']
             else:
-                print("Cant use a literal with opcode %s" % opcode[2])
+                print("Cant use a literal with opcode %s at line %d" % (opcode[2], lc))
+                hasError = True
                 return [False]
         elif(couldBeLiteral.isdigit()):
             return [False]
@@ -176,7 +179,7 @@ def passOne():
                 #print(opcode)
                 if (symbol):
                     addNewSymbol(symbol, lc)
-                literal = checkLiteralVariable(line, opcode)
+                literal = checkLiteralVariable(line, opcode, lc)
                 if (literal):
                     addLiteral(literal)
                 # type = search_opcode_table(opcode) -> given in tannenbaum don't know if we need it
@@ -302,13 +305,27 @@ passOne()
 output = passTwo()
 
 if (not hasError):
-    for o in output:
-        print(o, end='')
+    print("Generated Code: ")
+    with open ("output.txt", 'w') as writer:
+        for o in output:
+            writer.write(o)
+            print(o, end='')
 
 print("\nOpcode Table:")
+print("%10s | %10s | %10s | %10s | %10s" % ("Ass. Code", "OpCode", "Offset", "Argument", "OpcodeID"))
 for oT in opcodeTable:
-    print(oT)
+    row = oT
+    print("%10s | %10s | %10s | %10s | %10s" % (row[0], row[1], row[2], row[3], opcodeList[row[0]][3]))
 
 print("\nSymbol Table:")
-print(symbolTable)
-print(literalTable)
+print("%10s | %10s | %10s | %10s" % ("Name", "Type", "Offset", "Value"))
+for sT in symbolTable.keys():
+    if (symbolTable[sT][1] == 'var'):
+        print("%10s | %10s | %10s | %10s" % (sT, symbolTable[sT][1], symbolTable[sT][0], symbolTable[sT][2] or '-'))
+    else:
+        print("%10s | %10s | %10s | %10s" % (sT, symbolTable[sT][1], symbolTable[sT][0], '-'))
+
+print("\nLiteral Table:")
+print("%10s | %10s" % ("Name", "Offset"))
+for lT in literalTable.keys():
+    print("%10s | %10s" % (lT, literalTable[lT][0]))
