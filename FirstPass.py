@@ -359,10 +359,13 @@ if (not hasError):
             print(o, end='')
 
 print("\nOpcode Table:")
-print("%10s | %10s | %10s | %10s | %10s" % ("Ass. Code", "OpCode", "Offset", "Argument", "OpcodeID"))
-for oT in opcodeTable:
-    row = oT
-    print("%10s | %10s | %10s | %10s | %10s" % (row[0], row[1], row[2], row[3], opcodeList[row[0]][3]))
+with open ('intermediateTable.txt', 'w') as inter:
+    inter.write(("%10s | %10s | %10s | %10s | %10s\n" % ("Ass. Code", "OpCode", "Offset", "Argument", "OpcodeID")))
+    print("%10s | %10s | %10s | %10s | %10s" % ("Ass. Code", "OpCode", "Offset", "Argument", "OpcodeID"))
+    for oT in opcodeTable:
+        row = oT
+        inter.write(("%10s | %10s | %10s | %10s | %10s\n" % (row[0], row[1], row[2], row[3], opcodeList[row[0]][3])))
+        print("%10s | %10s | %10s | %10s | %10s" % (row[0], row[1], row[2], row[3], opcodeList[row[0]][3]))
 
 print("\nSymbol Table:")
 print("%10s | %10s | %10s | %10s" % ("Name", "Type", "Offset", "Value"))
